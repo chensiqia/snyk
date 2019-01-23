@@ -63,6 +63,7 @@ interface UpgradePath {
 interface FixInfo {
   upgradePaths: UpgradePath[];
   isPatchable: boolean;
+  nearestFixedInVersion?: string;
 }
 
 interface TestDepGraphResult {
@@ -142,6 +143,7 @@ function convertTestDepGraphResultToLegacy(
           upgradePath,
           isUpgradable: !!upgradePath[0] || !!upgradePath[1],
           isPatchable: pkgIssue.fixInfo.isPatchable,
+          nearestFixedInVersion: pkgIssue.fixInfo.nearestFixedInVersion,
           name: pkgInfo.pkg.name,
           version: pkgInfo.pkg.version as string,
         });

@@ -1,7 +1,6 @@
 module.exports = test;
 
 var _ = require('lodash');
-var semver = require('semver');
 var chalk = require('chalk');
 var debug = require('debug')('snyk');
 var snyk = require('../../lib/');
@@ -337,7 +336,6 @@ function formatIssues(vuln, options) {
     .join(', ');
 
   var version = undefined;
-  var vulnerableRange = vuln.list[0].semver.vulnerable;
   if (vuln.metadata.packageManager.toLowerCase() === 'upstream') {
     version = vuln.metadata.version;
   };
@@ -357,7 +355,7 @@ function formatIssues(vuln, options) {
     remediationInfo: vuln.metadata.type !== 'license'
       ? createRemediationText(vuln, packageManager)
       : '',
-    fixedIn: options.docker ? createFixedInText(vulnerableRange, version) : '',
+    fixedIn: options.docker ? createFixedInText(vuln, version) : '',
     dockerfilePackage: options.docker ? dockerfileInstructionText(vuln) : '',
   };
 
@@ -387,12 +385,17 @@ function dockerfileInstructionText(vuln) {
   return '';
 }
 
-function createFixedInText(versionRangeList, pkgVersion) {
+function createFixedInText(vuln, pkgVersion) {
   let fixedVersion = '';
+
+  if (vuln.nearestFixedInVersion) {
+    fixedVersion =  vuln.nearestFixedInVersion;
+  // pkgVersion is undefined for OS packages vulns
+  } else if (!pkgVersion) {{
+    var versionRangeList = vuln.list[0].semver.vulnerable;
   let fixedVersionCandidate = '';
   const lesserThan = /^<\S+$/;
-  // pkgVersion is undefined for OS packages vulns
-  if (!pkgVersion) {
+
     if (versionRangeList && versionRangeList.length) {
       // OS packages vulns versionRangeList includes a single upper bound version
       fixedVersionCandidate = versionRangeList[0];
@@ -400,19 +403,8 @@ function createFixedInText(versionRangeList, pkgVersion) {
       fixedVersion = lesserThan.test(fixedVersionCandidate) ?
         fixedVersionCandidate.substr(1) : '';
     }
-  } else {
-    for (const versionRange of versionRangeList) {
-      if (!semver.valid(pkgVersion) || !semver.satisfies(pkgVersion, versionRange)) {
-        continue;
-      }
-      // e.g. extract '5.1.0' from version range: '>=4.1.0 <5.1.0'
-      fixedVersionCandidate = versionRange.split(' ')[1];
-      if (lesserThan.test(fixedVersionCandidate)) {
-        fixedVersion = fixedVersionCandidate.substr(1);
-        break;
-      }
-    }
   }
+
   return fixedVersion ? chalk.bold('\n  Fixed in: ' + fixedVersion): '';
 }
 
